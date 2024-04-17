@@ -47,7 +47,7 @@ repositories {
   google()
 }
 
-def googlePlayServicesVersion = safeExtGet("googlePlayServicesVersion", "16.+")
+def googlePlayServicesVersion = safeExtGet("googlePlayServicesVersion", "18.2.0")
 
 dependencies {
   //noinspection GradleDynamicVersion
