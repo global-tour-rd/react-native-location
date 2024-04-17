@@ -1,46 +1,58 @@
-apply plugin: 'com.android.library'
-
-def DEFAULT_COMPILE_SDK_VERSION          = 25
-def DEFAULT_BUILD_TOOLS_VERSION          = "25.0.3"
-def DEFAULT_TARGET_SDK_VERSION           = 25
-def DEFAULT_GOOGLE_PLAY_SERVICES_VERSION = "16.+"
-
-android {
-  compileSdkVersion rootProject.hasProperty('compileSdkVersion') ? rootProject.compileSdkVersion : DEFAULT_COMPILE_SDK_VERSION
-  buildToolsVersion rootProject.hasProperty('buildToolsVersion') ? rootProject.buildToolsVersion : DEFAULT_BUILD_TOOLS_VERSION
-
-  defaultConfig {
-    minSdkVersion 16
-    targetSdkVersion rootProject.hasProperty('targetSdkVersion') ? rootProject.targetSdkVersion : DEFAULT_TARGET_SDK_VERSION
+buildscript {
+  repositories {
+    mavenCentral()
+    google()
   }
 
-  packagingOptions {
-    exclude 'META-INF/LICENSE'
-    exclude 'META-INF/DEPENDENCIES.txt'
-    exclude 'META-INF/LICENSE.txt'
-    exclude 'META-INF/NOTICE.txt'
-    exclude 'META-INF/NOTICE'
-    exclude 'META-INF/DEPENDENCIES'
-    exclude 'META-INF/notice.txt'
-    exclude 'META-INF/license.txt'
-    exclude 'META-INF/dependencies.txt'
-    exclude 'META-INF/LGPL2.1'
-  }
-
-  lintOptions {
-    disable 'InvalidPackage'
-  }
-
-  compileOptions {
-    sourceCompatibility JavaVersion.VERSION_1_7
-    targetCompatibility JavaVersion.VERSION_1_7
+  dependencies {
+    classpath("com.android.tools.build:gradle:7.3.1")
   }
 }
 
-dependencies {
-  def googlePlayServicesVersion = rootProject.hasProperty('googlePlayServicesVersion') ? rootProject.googlePlayServicesVersion : DEFAULT_GOOGLE_PLAY_SERVICES_VERSION
+apply plugin: 'com.android.library'
 
-  compileOnly "com.facebook.react:react-native:+"
-  compileOnly "com.google.android.gms:play-services-base:$googlePlayServicesVersion"
-  compileOnly "com.google.android.gms:play-services-location:$googlePlayServicesVersion"
+def safeExtGet(prop, fallback) {
+  rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+}
+
+android {
+  compileSdkVersion safeExtGet("compileSdkVersion", 25)
+  buildToolsVersion safeExtGet("buildToolsVersion", "25.0.3")
+
+  defaultConfig {
+    minSdkVersion safeExtGet("minSdkVersion", 16)
+    targetSdkVersion safeExtGet("targetSdkVersion", 25)
+  }
+
+  lintOptions{
+    abortOnError false
+  }
+
+  packagingOptions {
+    // For some reason gradle only complains about the duplicated version of libreact_render libraries
+    // while there are more libraries copied in intermediates folder of the lib build directory, we exclude
+    // only the ones that make the build fail (ideally we should only include libsafeareacontext_modules but we
+    // are only allowed to specify exclude patterns)
+    exclude "**/libreact_render*.so"
+  }
+}
+
+repositories {
+  mavenCentral()
+  mavenLocal()
+  maven {
+    // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
+    url "$rootDir/../node_modules/react-native/android"
+  }
+  google()
+}
+
+def playServicesVersion = safeExtGet("playServicesVersion", "18.2.0")
+
+dependencies {
+  //noinspection GradleDynamicVersion
+  implementation "com.facebook.react:react-native:+"
+  //noinspection GradleDependency
+  implementation "com.google.android.gms:play-services-base:$playServicesVersion"
+  implementation "com.google.android.gms:play-services-location:21.0.1"
 }
