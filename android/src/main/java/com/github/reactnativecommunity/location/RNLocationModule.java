@@ -30,6 +30,11 @@ public class RNLocationModule extends ReactContextBaseJavaModule {
     }
 
     // React interface
+    @ReactMethod
+    public void addListener(String eventName) {}
+
+    @ReactMethod
+    public void removeListeners(double count) {}
 
     @ReactMethod
     @SuppressWarnings("unused")
