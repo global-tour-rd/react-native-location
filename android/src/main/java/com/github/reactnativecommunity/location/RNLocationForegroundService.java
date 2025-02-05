@@ -15,7 +15,7 @@ public class RNLocationForegroundService extends Service {
     private static final String CHANNEL_ID = "RNLocationForegroundService";
     private static final int NOTIFICATION_ID = 1001;
     private static RNLocationProvider locationProvider;
-    private boolean locationProviderRunning = false;
+    private static boolean locationProviderRunning = false;
 
     @Override
     public void onCreate() {
@@ -66,12 +66,23 @@ public class RNLocationForegroundService extends Service {
     }
 
     private Notification buildNotification() {
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Location Service Running")
             .setContentText("Tracking location in the background")
-            .setSmallIcon(R.drawable.ic_location)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build();
+            .setPriority(NotificationCompat.PRIORITY_LOW);
+
+        int iconSource = getResourceIdForResourceName("ic_launcher");
+        notificationBuilder.setSmallIcon(iconSource);
+
+        return notificationBuilder.build();
+    }
+
+    private int getResourceIdForResourceName(String resourceName) {
+        int resourceId = this.getResources().getIdentifier(resourceName, "drawable", this.getPackageName());
+        if (resourceId == 0) {
+            resourceId = this.getResources().getIdentifier(resourceName, "mipmap", this.getPackageName());
+        }
+        return resourceId;
     }
 
     public static void setLocationProvider(RNLocationProvider provider) {

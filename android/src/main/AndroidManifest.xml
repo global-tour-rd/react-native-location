@@ -5,17 +5,11 @@
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
 
-  <!--
   <application>
     <service
-            android:name="com.github.reactnativecommunity.location.LocationService"
+            android:name="com.github.reactnativecommunity.location.RNLocationForegroundService"
             android:enabled="true"
             android:exported="true"
-            android:foregroundServiceType="location">
-
-      <intent-filter>
-      </intent-filter>
-    </service>
+            android:foregroundServiceType="location" />
   </application>
-  -->
 </manifest>
