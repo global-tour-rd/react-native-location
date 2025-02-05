@@ -1,6 +1,7 @@
 package com.github.reactnativecommunity.location;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 
 import com.facebook.react.bridge.ActivityEventListener;
@@ -18,6 +19,7 @@ public class RNLocationModule extends ReactContextBaseJavaModule {
     public static final String NAME = "RNLocation";
 
     private RNLocationProvider locationProvider;
+    private boolean isForegroundServiceRunning = false;
 
     public RNLocationModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -62,6 +64,7 @@ public class RNLocationModule extends ReactContextBaseJavaModule {
 
         // Pass the options to the location provider
         locationProvider.configure(getCurrentActivity(), options, promise);
+        RNLocationForegroundService.setLocationProvider(locationProvider);
     }
 
     @ReactMethod
@@ -74,6 +77,7 @@ public class RNLocationModule extends ReactContextBaseJavaModule {
 
         // Call the provider
         locationProvider.startUpdatingLocation();
+        startForegroundService();
     }
 
     @ReactMethod
@@ -86,6 +90,26 @@ public class RNLocationModule extends ReactContextBaseJavaModule {
 
         // Call the provider
         locationProvider.stopUpdatingLocation();
+        stopForegroundService();
+    }
+
+    private void startForegroundService() {
+        if (!isForegroundServiceRunning) {
+            Context context = getReactApplicationContext();
+            RNLocationForegroundService.setLocationProvider(locationProvider);
+            Intent intent = new Intent(context, RNLocationForegroundService.class);
+            context.startForegroundService(intent);
+            isForegroundServiceRunning = true;
+        }
+    }
+
+    private void stopForegroundService() {
+        if (isForegroundServiceRunning) {
+            Context context = getReactApplicationContext();
+            Intent intent = new Intent(context, RNLocationForegroundService.class);
+            context.stopService(intent);
+            isForegroundServiceRunning = false;
+        }
     }
 
     // Helpers
