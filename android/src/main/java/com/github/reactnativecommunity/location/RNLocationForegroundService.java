@@ -3,6 +3,7 @@ package com.github.reactnativecommunity.location;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Build;
@@ -11,17 +12,41 @@ import android.os.IBinder;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
+import com.facebook.react.bridge.ReactApplicationContext;
+
 public class RNLocationForegroundService extends Service {
     private static final String CHANNEL_ID = "RNLocationForegroundService";
     private static final int NOTIFICATION_ID = 1001;
+    private static ReactApplicationContext context = null;
+    private static Intent contextIntent = null;
     private static RNLocationProvider locationProvider;
     private static boolean locationProviderRunning = false;
+
+    public static void setLocationProvider(RNLocationProvider provider) {
+        locationProvider = provider;
+
+        if (locationProviderRunning) {
+            locationProvider.stopUpdatingLocation();
+            locationProvider.startUpdatingLocation();
+        }
+    }
+
+    public static void setContext(ReactApplicationContext reactApplicationContext) {
+        context = reactApplicationContext;
+    }
+
+    public static void setContextIntent(Intent reactIntent) {
+        contextIntent = reactIntent;
+    }
 
     @Override
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
-        startForeground(NOTIFICATION_ID, buildNotification());
+        Notification notification = buildNotification();
+        if (notification != null) {
+            startForeground(NOTIFICATION_ID, buildNotification());
+        }
     }
 
     @Override
@@ -38,7 +63,7 @@ public class RNLocationForegroundService extends Service {
     public void onDestroy() {
         if (locationProvider != null) {
             locationProviderRunning = false;
-            locationProvider.stopUpdatingLocation();
+            locationProvider = null;
         }
 
         super.onDestroy();
@@ -66,10 +91,23 @@ public class RNLocationForegroundService extends Service {
     }
 
     private Notification buildNotification() {
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
+        if (contextIntent == null) {
+            return null;
+        }
+
+        int code = (int) (System.currentTimeMillis() & 0xfffffff);
+        int flag = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                ? PendingIntent.FLAG_MUTABLE
+                : PendingIntent.FLAG_UPDATE_CURRENT;
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, code, contextIntent, flag);
+
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle("Location Service Running")
-            .setContentText("Tracking location in the background")
-            .setPriority(NotificationCompat.PRIORITY_LOW);
+            .setContentText("Your location is being used by the app.")
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setAutoCancel(true);
 
         int iconSource = getResourceIdForResourceName("ic_launcher");
         notificationBuilder.setSmallIcon(iconSource);
@@ -78,19 +116,9 @@ public class RNLocationForegroundService extends Service {
     }
 
     private int getResourceIdForResourceName(String resourceName) {
-        int resourceId = this.getResources().getIdentifier(resourceName, "drawable", this.getPackageName());
-        if (resourceId == 0) {
-            resourceId = this.getResources().getIdentifier(resourceName, "mipmap", this.getPackageName());
-        }
-        return resourceId;
-    }
-
-    public static void setLocationProvider(RNLocationProvider provider) {
-        locationProvider = provider;
-
-        if (locationProviderRunning) {
-            locationProvider.stopUpdatingLocation();
-            locationProvider.startUpdatingLocation();
-        }
+        String packageName = context.getPackageName();
+        int resourceIdDrawable = context.getResources().getIdentifier(resourceName, "drawable", packageName);
+        int resourceIdMipmap = context.getResources().getIdentifier(resourceName, "mipmap", packageName);
+        return resourceIdDrawable | resourceIdMipmap;
     }
 }

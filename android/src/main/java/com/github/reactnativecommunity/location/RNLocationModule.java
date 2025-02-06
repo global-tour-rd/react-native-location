@@ -1,11 +1,12 @@
 package com.github.reactnativecommunity.location;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.BaseActivityEventListener;
+import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
@@ -13,17 +14,25 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.module.annotations.ReactModule;
 
-
 @ReactModule(name = RNLocationModule.NAME)
 public class RNLocationModule extends ReactContextBaseJavaModule {
     public static final String NAME = "RNLocation";
 
     private RNLocationProvider locationProvider;
+    private boolean isForegroundServiceRequired = false;
     private boolean isForegroundServiceRunning = false;
 
     public RNLocationModule(ReactApplicationContext reactContext) {
         super(reactContext);
         reactContext.addActivityEventListener(activityEventListener);
+        reactContext.addLifecycleEventListener(lifecycleEventListener);
+    }
+
+    @Override
+    public void onCatalystInstanceDestroy() {
+        ReactApplicationContext context = getReactApplicationContext();
+        context.removeActivityEventListener(activityEventListener);
+        context.removeLifecycleEventListener(lifecycleEventListener);
     }
 
     @Override
@@ -64,7 +73,12 @@ public class RNLocationModule extends ReactContextBaseJavaModule {
 
         // Pass the options to the location provider
         locationProvider.configure(getCurrentActivity(), options, promise);
-        RNLocationForegroundService.setLocationProvider(locationProvider);
+
+        isForegroundServiceRequired = options.hasKey("allowsBackgroundLocationUpdates") && options.getBoolean("allowsBackgroundLocationUpdates");
+
+        if (isForegroundServiceRequired) {
+            RNLocationForegroundService.setLocationProvider(locationProvider);
+        }
     }
 
     @ReactMethod
@@ -77,7 +91,6 @@ public class RNLocationModule extends ReactContextBaseJavaModule {
 
         // Call the provider
         locationProvider.startUpdatingLocation();
-        startForegroundService();
     }
 
     @ReactMethod
@@ -90,26 +103,31 @@ public class RNLocationModule extends ReactContextBaseJavaModule {
 
         // Call the provider
         locationProvider.stopUpdatingLocation();
-        stopForegroundService();
     }
 
     private void startForegroundService() {
-        if (!isForegroundServiceRunning) {
-            Context context = getReactApplicationContext();
-            RNLocationForegroundService.setLocationProvider(locationProvider);
-            Intent intent = new Intent(context, RNLocationForegroundService.class);
+        ReactApplicationContext context = getReactApplicationContext();
+        Intent intent = new Intent(context, RNLocationForegroundService.class);
+        Intent intentContext = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+
+        RNLocationForegroundService.setContext(context);
+        RNLocationForegroundService.setContextIntent(intentContext);
+        RNLocationForegroundService.setLocationProvider(locationProvider);
+
+        isForegroundServiceRunning = true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(intent);
-            isForegroundServiceRunning = true;
+        } else {
+            context.startService(intent);
         }
     }
 
     private void stopForegroundService() {
-        if (isForegroundServiceRunning) {
-            Context context = getReactApplicationContext();
-            Intent intent = new Intent(context, RNLocationForegroundService.class);
-            context.stopService(intent);
-            isForegroundServiceRunning = false;
-        }
+        ReactApplicationContext context = getReactApplicationContext();
+        Intent intent = new Intent(context, RNLocationForegroundService.class);
+
+        isForegroundServiceRunning = false;
+        context.stopService(intent);
     }
 
     // Helpers
@@ -118,6 +136,29 @@ public class RNLocationModule extends ReactContextBaseJavaModule {
         public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
             if (locationProvider instanceof RNPlayServicesLocationProvider) {
                 ((RNPlayServicesLocationProvider) locationProvider).onActivityResult(requestCode, resultCode, data);
+            }
+        }
+    };
+
+    private LifecycleEventListener lifecycleEventListener = new LifecycleEventListener() {
+        @Override
+        public void onHostPause() {
+            if (isForegroundServiceRequired && !isForegroundServiceRunning) {
+                startForegroundService();
+            }
+        }
+
+        @Override
+        public void onHostResume() {
+            if (isForegroundServiceRequired && isForegroundServiceRunning) {
+                stopForegroundService();
+            }
+        }
+
+        @Override
+        public void onHostDestroy() {
+            if (isForegroundServiceRequired && isForegroundServiceRunning) {
+                stopForegroundService();
             }
         }
     };
