@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
@@ -12,41 +13,29 @@ import android.os.IBinder;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
-import com.facebook.react.bridge.ReactApplicationContext;
-
 public class RNLocationForegroundService extends Service {
     private static final String CHANNEL_ID = "RNLocationForegroundService";
     private static final int NOTIFICATION_ID = 1001;
-    private static ReactApplicationContext context = null;
-    private static Intent contextIntent = null;
-    private static RNLocationProvider locationProvider;
-    private static boolean locationProviderRunning = false;
+    private static RNLocationProvider locationProvider = null;
+    public static boolean locationProviderRunning = false;
 
     public static void setLocationProvider(RNLocationProvider provider) {
         locationProvider = provider;
+    }
 
-        if (locationProviderRunning) {
+    public static void restartLocationProvider() {
+        if (locationProvider != null && locationProviderRunning) {
             locationProvider.stopUpdatingLocation();
             locationProvider.startUpdatingLocation();
         }
     }
 
-    public static void setContext(ReactApplicationContext reactApplicationContext) {
-        context = reactApplicationContext;
-    }
-
-    public static void setContextIntent(Intent reactIntent) {
-        contextIntent = reactIntent;
-    }
 
     @Override
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
-        Notification notification = buildNotification();
-        if (notification != null) {
-            startForeground(NOTIFICATION_ID, buildNotification());
-        }
+        startForeground(NOTIFICATION_ID, buildNotification());
     }
 
     @Override
@@ -63,11 +52,24 @@ public class RNLocationForegroundService extends Service {
     public void onDestroy() {
         if (locationProvider != null) {
             locationProviderRunning = false;
-            locationProvider = null;
+            locationProvider.stopUpdatingLocation();
         }
 
         super.onDestroy();
         stopForeground(true);
+        stopSelf();
+    }
+
+    @Override
+    public void onTaskRemoved(Intent intent) {
+        if (locationProvider != null) {
+            locationProviderRunning = false;
+            locationProvider.stopUpdatingLocation();
+        }
+
+        super.onTaskRemoved(intent);
+        stopForeground(true);
+        stopSelf();
     }
 
     @Nullable
@@ -91,31 +93,28 @@ public class RNLocationForegroundService extends Service {
     }
 
     private Notification buildNotification() {
-        if (contextIntent == null) {
-            return null;
-        }
+        Context context = getApplicationContext();
+        Intent intent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
 
         int code = (int) (System.currentTimeMillis() & 0xfffffff);
         int flag = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
                 ? PendingIntent.FLAG_MUTABLE
                 : PendingIntent.FLAG_UPDATE_CURRENT;
 
-        PendingIntent pendingIntent = PendingIntent.getActivity(context, code, contextIntent, flag);
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, code, intent, flag);
 
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle("Location Service Running")
-            .setContentText("Your location is being used by the app.")
             .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setAutoCancel(true);
+            .setPriority(NotificationCompat.PRIORITY_LOW);
 
-        int iconSource = getResourceIdForResourceName("ic_launcher");
+        int iconSource = getResourceIdForResourceName("ic_launcher", context);
         notificationBuilder.setSmallIcon(iconSource);
 
         return notificationBuilder.build();
     }
 
-    private int getResourceIdForResourceName(String resourceName) {
+    private int getResourceIdForResourceName(String resourceName, Context context) {
         String packageName = context.getPackageName();
         int resourceIdDrawable = context.getResources().getIdentifier(resourceName, "drawable", packageName);
         int resourceIdMipmap = context.getResources().getIdentifier(resourceName, "mipmap", packageName);
