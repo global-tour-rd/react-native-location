@@ -208,6 +208,7 @@ You can call `configure` multiple times at it will only change the setting which
 
 ```javascript
 RNLocation.configure({
+    allowsBackgroundLocationUpdates: false,
     distanceFilter: 100, // Meters
     desiredAccuracy: {
       ios: "best",
@@ -220,7 +221,6 @@ RNLocation.configure({
     maxWaitTime: 5000, // Milliseconds
     // iOS Only
     activityType: "other",
-    allowsBackgroundLocationUpdates: false,
     headingFilter: 1, // Degrees
     headingOrientation: "portrait",
     pausesLocationUpdatesAutomatically: false,
