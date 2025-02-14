@@ -153,6 +153,17 @@ If you would like to use the Google Play Services Fused Location provider, then 
 implementation "com.google.android.gms:play-services-base:16.0.1"
 implementation "com.google.android.gms:play-services-location:16.0.0"
 ```
+
+### 4. Background mode setup (optional)
+You need to ensure that your `AndroidManifest.xml` contains this line:
+
+```xml
+<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+```
+
+```javascript
+RNLocation.configure({ allowsBackgroundLocationUpdates: true });
+```
 </details>
 
 ## Example application
