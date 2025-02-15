@@ -155,12 +155,23 @@ implementation "com.google.android.gms:play-services-location:16.0.0"
 ```
 
 ### 4. Background mode setup (optional)
-You need to ensure that your `AndroidManifest.xml` contains this line:
+For background location to work, a few things need to be configured:
 
+1. Permissions that need to be added to the `AndroidManifest.xml` file.
 ```xml
 <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+<application>
+    <!-- OTHER LINES -->
+    <service 
+            android:name="com.github.reactnativecommunity.location.RNLocationForegroundService" 
+            android:exported="false" 
+            android:foregroundServiceType="location" />
+    <!-- OTHER LINES -->
+</application>
 ```
 
+2. Pass parameters to the service configuration.
 ```javascript
 RNLocation.configure({ allowsBackgroundLocationUpdates: true });
 ```
