@@ -25,7 +25,7 @@ public class RNLocationModule extends ReactContextBaseJavaModule {
     }
 
     @Override
-    public void onCatalystInstanceDestroy() {
+    public void invalidate() {
         ReactApplicationContext context = getReactApplicationContext();
         context.removeActivityEventListener(activityEventListener);
     }
